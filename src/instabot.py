@@ -23,6 +23,7 @@ from .sql_updates import get_username_random, get_username_to_unfollow_random
 from .sql_updates import check_and_insert_user_agent
 from fake_useragent import UserAgent
 import re
+import instaloader
 
 class InstaBot:
     """
@@ -160,6 +161,7 @@ class InstaBot:
                  unwanted_username_list=[],
                  unfollow_whitelist=[]):
 
+        self.instaload = instaloader.Instaloader()
         self.database_name = database_name
         self.follows_db = sqlite3.connect(database_name, timeout=0, isolation_level=None)
         self.follows_db_c = self.follows_db.cursor()
@@ -284,7 +286,6 @@ class InstaBot:
         })
 
         r = self.s.get(self.url)
-        #self.s.headers.update({'X-CSRFToken': r.cookies['csrftoken']})
         csrf_token = re.search('(?<=\"csrf_token\":\")\w+',  r.text).group(0)
         self.s.headers.update({'X-CSRFToken': csrf_token})
         time.sleep(5 * random.random())
@@ -430,17 +431,10 @@ class InstaBot:
                 return ""
 
     def get_username_by_user_id(self, user_id):
-        """ Get username by user_id """
         if self.login_status:
-            try:
-                url_info = self.api_user_detail % user_id
-                r = self.s.get(url_info, headers="")
-                all_data = json.loads(r.text)
-                username = all_data["user"]["username"]
-                return username
-            except:
-                logging.exception("Except on get_username_by_user_id")
-                return False
+            profile = instaloader.Profile.from_id(self.instaload.context,  user_id)
+            username = profile.username
+            return username
         else:
             return False
 
@@ -910,37 +904,46 @@ class InstaBot:
                     if follows == 0 or follower / follows > 2:
                         self.is_selebgram = True
                         self.is_fake_account = False
-                        print('   >>>This is probably Selebgram account')
+                        #print('   >>>This is probably Selebgram account')
+                        self.write_log('   >>>This is probably Selebgram account')
                     elif follower == 0 or follows / follower > 2:
                         self.is_fake_account = True
                         self.is_selebgram = False
-                        print('   >>>This is probably Fake account')
+                        #print('   >>>This is probably Fake account')
+                        self.write_log('   >>>This is probably Fake account')
                     else:
                         self.is_selebgram = False
                         self.is_fake_account = False
-                        print('   >>>This is a normal account')
+                        #print('   >>>This is a normal account')
+                        self.write_log('   >>>This is a normal account')
 
                     if media > 0 and follows / media < 25 and follower / media < 25:
                         self.is_active_user = True
-                        print('   >>>This user is active')
+                        #print('   >>>This user is active')
+                        self.write_log('   >>>This user is active')
                     else:
                         self.is_active_user = False
-                        print('   >>>This user is passive')
+                        #print('   >>>This user is passive')
+                        self.write_log('   >>>This user is passive')
 
                     if follow_viewer or has_requested_viewer:
                         self.is_follower = True
-                        print("   >>>This account is following you")
+                        #print("   >>>This account is following you")
+                        self.write_log('   >>>This account is following you')
                     else:
                         self.is_follower = False
-                        print('   >>>This account is NOT following you')
+                        #print('   >>>This account is NOT following you')
+                        self.write_log('   >>>This account is NOT following you')
 
                     if followed_by_viewer or requested_by_viewer:
                         self.is_following = True
-                        print('   >>>You are following this account')
+                        #print('   >>>You are following this account')
+                        self.write_log('   >>>You are following this account')
 
                     else:
                         self.is_following = False
-                        print('   >>>You are NOT following this account')
+                        #print('   >>>You are NOT following this account')
+                        self.write_log('   >>>You are NOT following this account')
 
                 except:
                     logging.exception("Except on auto_unfollow!")
